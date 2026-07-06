@@ -152,7 +152,7 @@ function computeModel() {
   const grand = subtotal - red;
   return { tiefbau, montage, bauplatz, gesamt, drittIng, baukosten,
     engineering: eng.value, bauleitung: bl.value, bhv: bhv.value,
-    eng, bl, bhv, engBlBhv, kat, honorarMax, honorarUeber, subtotal, red, grand };
+    eng, bl, bhvCalc: bhv, engBlBhv, kat, honorarMax, honorarUeber, subtotal, red, grand };
 }
 
 /* ---------- Router ---------- */
@@ -162,17 +162,40 @@ let navOpts = {};
 
 function navigate(view, opts) {
   if (!VIEWS[view]) view = 'uebersicht';
+  const sameView = view === currentView;
   currentView = view;
   navOpts = opts || {};
   document.querySelectorAll('.nav-item').forEach((n) => n.classList.toggle('active', n.dataset.view === view));
   const main = document.getElementById('main');
+  // Fokus & Scroll merken, damit die Zahleneingabe beim Live-Neurendern nicht aus dem Feld springt
+  const foc = captureFocus(main);
+  const scrollY = window.scrollY;
   main.innerHTML = '';
   VIEWS[view](main);
-  main.scrollTop = 0; window.scrollTo(0, 0);
   updateHeaderTotal();
   closeSidebar();
   location.hash = view;
+  if (sameView && foc.sel) { restoreFocus(main, foc); window.scrollTo(0, scrollY); }
+  else { main.scrollTop = 0; window.scrollTo(0, 0); }
 }
+/* Ermittelt einen stabilen Selektor + Cursorposition des aktiven Eingabefelds */
+function captureFocus(main) {
+  const ae = document.activeElement;
+  if (!ae || !main.contains(ae)) return {};
+  let sel = ae.id ? '#' + ae.id
+    : ae.dataset.hon ? `[data-hon="${ae.dataset.hon}"][data-f="${ae.dataset.f}"]`
+    : ae.dataset.offer ? `[data-offer="${cssEsc(ae.dataset.offer)}"]`
+    : ae.dataset.id ? `[data-id="${cssEsc(ae.dataset.id)}"]` : null;
+  let pos = null; try { pos = ae.selectionStart; } catch (e) {}
+  return { sel, pos };
+}
+function restoreFocus(main, foc) {
+  const nn = main.querySelector(foc.sel);
+  if (!nn) return;
+  nn.focus();
+  if (foc.pos != null) { try { nn.setSelectionRange(foc.pos, foc.pos); } catch (e) {} }
+}
+function cssEsc(s) { return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/"/g, '\\"'); }
 function updateHeaderTotal() {
   document.getElementById('hdr-total').textContent = chf(computeModel().grand);
 }
@@ -297,7 +320,7 @@ function summaryAside(m) {
 function bindReduction(main) {
   const ri = main.querySelector('#reduction-input');
   if (!ri) return;
-  ri.addEventListener('input', () => {
+  ri.addEventListener('change', () => {
     let v = parseFloat(ri.value); if (isNaN(v) || v < 0) v = 0; if (v > 100) v = 100;
     state.reduction = v; save(); navigate(currentView);
   });
@@ -463,7 +486,7 @@ VIEWS['gks-honorar'] = (main) => {
 
   main.appendChild(honBlock('eng', 'Honorar Engineering', HONORAR.rates.engineering, m.eng, true));
   main.appendChild(honBlock('bl', 'Honorar Bauleitung', HONORAR.rates.bauleitung, m.bl, true));
-  main.appendChild(honBlock('bhv', 'Honorar Bauherrenvertretung', HONORAR.rates.bhv, m.bhv, false));
+  main.appendChild(honBlock('bhv', 'Honorar Bauherrenvertretung', HONORAR.rates.bhv, m.bhvCalc, false));
 
   // Dritt-Ingenieur + Gesamtbausumme
   main.appendChild((() => {
@@ -471,8 +494,8 @@ VIEWS['gks-honorar'] = (main) => {
       <label>Gesamtbausumme koord. Projekt (alle Dritten)<input type="number" id="in-gesamt" placeholder="${chf(m.gesamt)}" value="${esc(state.gesamtbausumme)}"></label>
       <label>Dritt-Ingenieur-Leistungen [CHF]<input type="number" id="in-dritt" placeholder="0" value="${esc(state.drittIng)}"></label>
     </div><p class="card-note">Die Gesamtbausumme fliesst in den SIA-Grundfaktor der Engineering-Berechnung ein (Standard: Tiefbau + Montage).</p></div>`);
-    c.querySelector('#in-gesamt').addEventListener('input', (e) => { state.gesamtbausumme = e.target.value; save(); navigate(currentView); });
-    c.querySelector('#in-dritt').addEventListener('input', (e) => { state.drittIng = e.target.value; save(); navigate(currentView); });
+    c.querySelector('#in-gesamt').addEventListener('change', (e) => { state.gesamtbausumme = e.target.value; save(); navigate(currentView); });
+    c.querySelector('#in-dritt').addEventListener('change', (e) => { state.drittIng = e.target.value; save(); navigate(currentView); });
     return c;
   })());
 
@@ -535,11 +558,15 @@ function honBlock(key, title, rate, calc, hasDifficulty) {
   block.querySelectorAll('.mode-toggle button').forEach((b) => b.addEventListener('click', () => {
     state.hon[key].mode = b.dataset.mode; save(); navigate(currentView);
   }));
-  block.querySelectorAll('[data-hon]').forEach((inp) => inp.addEventListener('input', () => {
+  block.querySelectorAll('[data-hon]').forEach((inp) => {
     const f = inp.dataset.f;
-    state.hon[key][f] = (f === 'hours') ? inp.value : parseFloat(inp.value);
-    save(); navigate(currentView);
-  }));
+    // Zahlenfeld (Stunden): auf 'change' aktualisieren, damit der Cursor beim Tippen nicht springt.
+    // Auswahllisten (Schwierigkeitsgrad): 'change' feuert direkt bei Auswahl.
+    inp.addEventListener('change', () => {
+      state.hon[key][f] = (f === 'hours') ? inp.value : parseFloat(inp.value);
+      save(); navigate(currentView);
+    });
+  });
   return block;
 }
 
@@ -574,8 +601,16 @@ VIEWS['oat-uebersicht'] = (main) => {
       </tfoot>
     </table></div>
   </div>`);
+  // Eingaben aktualisieren die Totale in-place, ohne die Ansicht neu zu rendern (Fokus bleibt erhalten)
   card.querySelectorAll('[data-offer]').forEach((inp) => inp.addEventListener('input', () => {
-    state.oatOffer[inp.dataset.offer] = inp.value; save(); navigate(currentView);
+    state.oatOffer[inp.dataset.offer] = inp.value; save();
+    let off = 0;
+    card.querySelectorAll('[data-offer]').forEach((i) => { off += parseFloat(i.value) || 0; });
+    const fee = off * HONORAR.rabatte.handlingFee;
+    card.querySelector('#oat-off-total').textContent = chf(off);
+    card.querySelector('#oat-fee').textContent = chf(fee);
+    card.querySelector('#oat-vol').textContent = chf(off + fee);
+    updateHeaderTotal();
   }));
   main.appendChild(card);
 
