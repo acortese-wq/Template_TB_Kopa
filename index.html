@@ -3,82 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NPK WISP TB-KoPa V5.0 – Grobkostenschätzung</title>
+  <title>NPK WISP TB-KoPa V5.0</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="site-header">
-    <div class="wrap header-inner">
+    <div class="header-inner">
+      <button id="navToggle" class="nav-toggle" type="button" aria-label="Menü">☰</button>
       <div class="brand">
         <div class="brand-mark">TB</div>
         <div class="brand-text">
           <h1>NPK WISP TB-KoPa <span class="ver">V5.0</span></h1>
-          <p>Grobkostenschätzung – Kooperationsprojekt Tiefbau</p>
+          <p>Kooperationsprojekt Tiefbau · Offerte- &amp; Abrechnungstool</p>
         </div>
       </div>
       <div class="header-actions">
-        <button id="btnReset" class="btn ghost" type="button">Zurücksetzen</button>
-        <button id="btnPrint" class="btn" type="button">Drucken / PDF</button>
+        <div class="header-total">
+          <span>Total GKS</span><b id="hdr-total">CHF 0</b>
+        </div>
+        <button id="btnPrint" class="btn" type="button">Drucken</button>
+        <button id="btnReset" class="btn ghost" type="button">Reset</button>
       </div>
     </div>
   </header>
 
-  <main class="wrap layout">
-    <div class="content">
-      <!-- Projekt-Übersicht -->
-      <section class="card">
-        <h2>Projektübersicht</h2>
-        <div class="meta-grid">
-          <label>SPAN Ticket-ID<input type="text" data-meta="span" placeholder="—" /></label>
-          <label>SID Nr.<input type="text" data-meta="sid" placeholder="—" /></label>
-          <label>Baustellenname<input type="text" data-meta="baustelle" placeholder="—" /></label>
-          <label>Kategorie<input type="text" data-meta="kategorie" placeholder="—" /></label>
-          <label>Kontakt Swisscom<input type="text" data-meta="kontaktscs" placeholder="Name / Tel." /></label>
-          <label>Kontakt TU<input type="text" data-meta="kontakttu" placeholder="Name / Tel." /></label>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <nav>
+        <div class="nav-group">
+          <div class="nav-group-title">Grobkostenschätzung</div>
+          <a class="nav-item active" data-view="uebersicht"><span class="ni-no">01</span> Projektübersicht</a>
+          <a class="nav-item" data-view="gks-kosten"><span class="ni-no">02</span> Tiefbau · Montage · Bauplatz</a>
+          <a class="nav-item" data-view="gks-honorar"><span class="ni-no">03</span> Engineering · BL · BHV</a>
         </div>
-      </section>
-
-      <nav class="tabs" id="tabs">
-        <button class="tab active" data-tab="tiefbau">Tiefbauarbeiten</button>
-        <button class="tab" data-tab="montage">Montagearbeiten</button>
-        <button class="tab" data-tab="bauplatz">Bauplatz-Installation</button>
+        <div class="nav-group">
+          <div class="nav-group-title">Offerte &amp; Abrechnung (OAT)</div>
+          <a class="nav-item" data-view="oat-uebersicht"><span class="ni-no">04</span> OAT Projektübersicht</a>
+          <a class="nav-item" data-view="oat-montage"><span class="ni-no">05</span> Montage NPK EPG</a>
+          <a class="nav-item" data-view="oat-tiefbau"><span class="ni-no">06</span> Tiefbau &amp; Spez.-Aufgaben</a>
+          <a class="nav-item" data-view="oat-bauplatz"><span class="ni-no">07</span> Bauplatz-Installation</a>
+          <a class="nav-item" data-view="oat-bhveng"><span class="ni-no">08</span> BHV &amp; Engineering</a>
+          <a class="nav-item" data-view="oat-aenderung"><span class="ni-no">09</span> Bestelländerung</a>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">Referenz</div>
+          <a class="nav-item" data-view="parameter"><span class="ni-no">10</span> Parameter &amp; Sprache</a>
+          <a class="nav-item" data-view="lvtexte"><span class="ni-no">11</span> LV-Texte DE/FR/IT</a>
+          <a class="nav-item" data-view="changelog"><span class="ni-no">✎</span> Änderungskontrolle</a>
+        </div>
       </nav>
-
-      <section id="panel-tiefbau" class="panel active"></section>
-      <section id="panel-montage" class="panel"></section>
-      <section id="panel-bauplatz" class="panel"></section>
-    </div>
-
-    <!-- Sticky Zusammenfassung -->
-    <aside class="summary">
-      <div class="summary-card">
-        <h2>Zusammenfassung</h2>
-        <ul class="sum-list">
-          <li><span>Tiefbauarbeiten</span><b id="sum-tiefbau">CHF 0</b></li>
-          <li><span>Montagearbeiten</span><b id="sum-montage">CHF 0</b></li>
-          <li><span>Bauplatz-Installation</span><b id="sum-bauplatz">CHF 0</b></li>
-          <li class="reduction-row" id="reduction-row" hidden>
-            <span>Koopa-Synergie <input type="number" id="reduction-input" min="0" max="100" step="1" value="0" /> %</span>
-            <b id="sum-reduction">– CHF 0</b>
-          </li>
-        </ul>
-        <div class="grand">
-          <span>Total Grobkostenschätzung</span>
-          <b id="sum-grand">CHF 0</b>
-        </div>
-        <p class="note">Richtpreise gemäss Richtpreisliste SCS. Alle Beträge in CHF, ohne MwSt. Bauplatz-Installation wird automatisch anhand der Projektsumme (Tiefbau + Montage) berechnet.</p>
-      </div>
     </aside>
-  </main>
+    <div class="sidebar-backdrop" id="backdrop"></div>
+
+    <main class="main" id="main"></main>
+  </div>
 
   <footer class="site-footer">
-    <div class="wrap">
-      <span>NPK WISP TB-KoPa V5.0 · Grobkostenschätzung (Richtpreisliste SCS)</span>
-      <span>Erzeugt aus der Excel-Vorlage · Berechnung im Browser, keine Datenübertragung</span>
-    </div>
+    <span>NPK WISP TB-KoPa V5.0 · aus der Excel-Vorlage erzeugt</span>
+    <span>Richtpreisliste SCS · Berechnung im Browser, keine Datenübertragung</span>
   </footer>
 
   <script src="data.js"></script>
+  <script src="data-extra.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

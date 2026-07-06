@@ -1,49 +1,68 @@
-# NPK WISP TB-KoPa V5.0 – Grobkostenschätzung (Web)
+# NPK WISP TB-KoPa V5.0 – Web-Anwendung
 
-Interaktiver Kostenrechner, erzeugt aus der Excel-Vorlage
-`NPK_WISP_TBKoPa_V5.0` (Kooperationsprojekt Tiefbau, Richtpreisliste SCS).
+Vollständige Web-Umsetzung der Excel-Vorlage `NPK_WISP_TBKoPa_V5.0`
+(Kooperationsprojekt Tiefbau, Richtpreisliste SCS). **Alle 12 Arbeitsblätter**
+sind als interaktive Ansichten abgebildet – als statische Single-Page-Anwendung
+ohne Server und ohne Build-Schritt.
 
-Die Website bildet die **Grobkostenschätzung (GKS)** der Vorlage als
-statische Single-Page-Anwendung ab – ohne Server, ohne Build-Schritt.
+## Ansichten (= Arbeitsblätter)
+
+**Grobkostenschätzung (GKS)**
+- **01 · Projektübersicht** – Projektmetadaten und Zusammenzug aller Kategorien
+  inkl. BHV/Engineering/Bauleitung-Anteilen und Koopa-Synergie-Reduktion.
+- **02 · Tiefbau · Montage · Bauplatz** – 49 Tiefbau- und 32 Montage-Positionen
+  mit Mengeneingabe und Live-Totalen; Bauplatz-Installation automatisch nach
+  Projektsumme (4 Pauschalstufen).
+- **03 · Engineering · Bauleitung · BHV** – Honorarberechnung wahlweise
+  automatisiert (SIA-103-Richtwertmodell) oder manuell (Stunden × Ansatz).
+
+**Offerte & Abrechnung (OAT)**
+- **04 · OAT Projektübersicht** – Gegenüberstellung Grobkostenschätzung / Offerte,
+  3rd-Party-Handling-Fee, Rabattstufen.
+- **05 · Montage NPK EPG** – durchsuchbarer Katalog mit 993 NPK-Positionen,
+  Filter nach Leistungsart (CU/GF/AB/KK/tbd), TU-Rabatt und laufendem Total.
+- **06 · Tiefbau & Spezial-Aufgaben** – editierbare Offert-Zeilen (Datum,
+  Kurztext, AK, Einheit, Menge, Preis) mit Total.
+- **07 · Bauplatz-Installation** – automatisierte Auftragspauschale nach
+  Projektsumme (Offerte oder GKS).
+- **08 · BHV & Engineering** – Positionsweise Erfassung der Stundenaufwände für
+  Engineering, Bauleitung und Bauherrenvertretung.
+- **09 · Bestelländerung** – editierbare Tabelle der Volumenänderungen (Ausmass).
+
+**Referenz**
+- **10 · Parameter & Sprache** – Stundensätze, Rabatte, Auswahllisten.
+- **11 · LV-Texte DE/FR/IT** – dreisprachiger Positionskatalog (1147 Positionen),
+  durchsuchbar.
+- **Änderungskontrolle** – Versionshistorie der Vorlage.
 
 ## Funktionen
 
-- **Tiefbauarbeiten** – 49 Positionen in 6 Kategorien (Graben, Rohre, Schächte,
-  Werklöcher, Gebäudeeinführung, Allgemeine Arbeiten) mit Mengeneingabe und
-  Live-Berechnung der Zeilen- und Kategorietotale.
-- **Montagearbeiten** – 32 Positionen (Kabelarbeiten Material sowie
-  Kabelarbeit/Abbruch) inkl. Kennzeichnung nach Leistungsart (CU / GF / AB).
-- **Bauplatz-Installation** – automatische Ermittlung der Auftragspauschale
-  anhand der Projektsumme (Tiefbau + Montage) mit vier Stufen
-  (< 1'500 / < 10'000 / < 50'000 / ≥ 50'000 CHF).
-- **Projektübersicht** mit Metadatenfeldern (SPAN Ticket-ID, SID Nr.,
-  Baustellenname, Kontakte).
-- **Koopa-Synergie** – prozentualer Abzug auf die Zwischensumme.
-- **Sticky-Zusammenfassung** mit Gesamttotal, **Drucken/PDF-Export** und
-  **Zurücksetzen**.
-- Eingaben werden lokal im Browser (`localStorage`) gespeichert – es werden
-  keine Daten übertragen.
+- Live-Berechnung sämtlicher Totale, blattübergreifend verknüpft
+  (GKS → Bauplatz → Honorare → Gesamttotal).
+- Alle Eingaben werden lokal im Browser (`localStorage`) gespeichert – es werden
+  **keine Daten übertragen**.
+- Drucken/PDF-Export, Reset, responsive Darstellung (Desktop & Mobile).
 
 ## Nutzung
 
-Die Anwendung ist rein statisch. Zum Öffnen genügt es, `index.html` im Browser
-zu laden – oder z. B. lokal auszuliefern:
+Rein statisch – `index.html` im Browser öffnen oder lokal ausliefern:
 
 ```bash
-python3 -m http.server 8000
-# danach http://localhost:8000 aufrufen
+python3 -m http.server 8000   # danach http://localhost:8000
 ```
 
 ## Dateien
 
-| Datei        | Inhalt                                                        |
-|--------------|---------------------------------------------------------------|
-| `index.html` | Seitenstruktur                                                |
-| `styles.css` | Gestaltung (responsiv, Druck-Layout)                          |
-| `app.js`     | Rendering & Berechnungslogik                                  |
-| `data.js`    | Preisdaten (aus der Excel extrahiert, Richtpreisliste SCS)    |
+| Datei           | Inhalt                                                       |
+|-----------------|--------------------------------------------------------------|
+| `index.html`    | Grundgerüst mit Seitenleisten-Navigation                     |
+| `styles.css`    | Gestaltung (responsiv + Druck-Layout)                        |
+| `app.js`        | View-Router, Rendering & Berechnungslogik aller Blätter      |
+| `data.js`       | GKS-Preisdaten (Tiefbau, Montage, Bauplatz)                  |
+| `data-extra.js` | NPK-Katalog, LV-Texte, Parameter, Änderungshistorie, Honorar |
 
-## Hinweis
+## Hinweise
 
-Alle Beträge in CHF, ohne MwSt. Es handelt sich um Richtpreise gemäss
-Richtpreisliste SCS zu Schätzungszwecken.
+- Alle Beträge in CHF, ohne MwSt.; Richtpreise gemäss Richtpreisliste SCS.
+- Das automatisierte Honorarmodell (Blatt 03) liefert **Richtwerte** nach
+  SIA 103; für verbindliche Angaben ist die manuelle Berechnung vorgesehen.
