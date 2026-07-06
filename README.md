@@ -11,10 +11,14 @@ ohne Server und ohne Build-Schritt.
 - **01 · Projektübersicht** – Projektmetadaten und Zusammenzug aller Kategorien
   inkl. BHV/Engineering/Bauleitung-Anteilen und Koopa-Synergie-Reduktion.
 - **02 · Tiefbau · Montage · Bauplatz** – 49 Tiefbau- und 32 Montage-Positionen
-  mit Mengeneingabe und Live-Totalen; Bauplatz-Installation automatisch nach
-  Projektsumme (4 Pauschalstufen).
+  mit Mengeneingabe und Live-Totalen; alternativ **Devis-Tool / Offerte**:
+  Totalbetrag direkt erfassen (z. B. Tiefbau CHF 25'000) statt Positionen.
+  Bauplatz-Installation automatisch nach Projektsumme (4 Pauschalstufen).
 - **03 · Engineering · Bauleitung · BHV** – Honorarberechnung wahlweise
-  automatisiert (SIA-103-Richtwertmodell) oder manuell (Stunden × Ansatz).
+  automatisiert (SIA-103-Richtwertmodell) oder manuell (Stunden × Ansatz),
+  getrieben durch die Total-Tiefbau-/Montagekosten. Enthält die
+  **Honorar-Obergrenze nach Projektgrösse** (K 30 % / M 25 % / G 20 % der
+  Baukosten) mit Warnung, dass höhere Kosten begründet werden müssen.
 
 **Offerte & Abrechnung (OAT)**
 - **04 · OAT Projektübersicht** – Gegenüberstellung Grobkostenschätzung / Offerte,

@@ -16,6 +16,8 @@ const state = {
   meta: {},
   qty: {},              // GKS Tiefbau/Montage Mengen
   reduction: 0,         // Koopa-Synergie %
+  grundlage: { tiefbau: 'liste', montage: 'liste' },  // 'liste' = Richtpreisliste, 'devis' = Devis-Tool/Offerte
+  devisTotal: { tiefbau: '', montage: '' },           // direkt erfasste Totalbeträge
   gesamtbausumme: '',   // Gesamtprojektvolumen alle Dritte (für Honorar)
   drittIng: '',         // Dritt-Ingenieur CHF
   hon: {                // Honorar-Einstellungen
@@ -42,16 +44,33 @@ function deepAssign(t, s) {
 }
 const save = () => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {} };
 
+/* Honorar-Obergrenzen nach Projektgrösse (Baukosten Tiefbau + Montage).
+   Anteile gemäss Abschlussblatt E&B: K 30 %, M 25 %, G 20 %.
+   Schwellen aus dem Beispielprojekt abgeleitet (Baukosten 32'302 → Mittel). */
+const HONORAR_KATEGORIEN = [
+  { key: 'K', label: 'Klein', max: 0.30, lo: 0, hi: 10000, range: '< CHF 10’000' },
+  { key: 'M', label: 'Mittel', max: 0.25, lo: 10000, hi: 50000, range: 'CHF 10’000 – 50’000' },
+  { key: 'G', label: 'Gross', max: 0.20, lo: 50000, hi: Infinity, range: '≥ CHF 50’000' },
+];
+function honorarKategorie(baukosten) {
+  return HONORAR_KATEGORIEN.find((k) => baukosten >= k.lo && baukosten < k.hi) || HONORAR_KATEGORIEN[0];
+}
+
 /* ---------- Kern-Berechnungen (blattübergreifend) ---------- */
 function itemId(section, ci, si, ii) { return `${section}-${ci}-${si}-${ii}`; }
 
-function sectionTotal(section, groups) {
+function listTotal(section, groups) {
   let total = 0;
   groups.forEach((cat, ci) => cat.subs.forEach((sub, si) => sub.items.forEach((item, ii) => {
     const q = parseFloat(state.qty[itemId(section, ci, si, ii)]);
     if (!isNaN(q) && q > 0) total += item.price * q;
   })));
   return total;
+}
+/* Effektiver Sektionswert: Richtpreisliste (Positionen) ODER Devis-Tool (Totalbetrag) */
+function sectionTotal(section, groups) {
+  if (state.grundlage[section] === 'devis') return parseFloat(state.devisTotal[section]) || 0;
+  return listTotal(section, groups);
 }
 function bauplatzTierIndex(sum) {
   if (sum <= 0) return -1;
@@ -114,21 +133,28 @@ function computeModel() {
   const zwischentotal = tiefbau + montage + bauplatz + eng.value + drittIng + bl.value;
   const bhv = honorarBHV(zwischentotal);
   const engBlBhv = eng.value + bl.value + bhv.value;
+  // Honorar-Obergrenze nach Baukosten (Tiefbau + Montage)
+  const baukosten = tiefbau + montage;
+  const kat = honorarKategorie(baukosten);
+  const honorarMax = kat.max * baukosten;
+  const honorarUeber = engBlBhv > honorarMax + 0.5;   // Obergrenze überschritten?
   const subtotal = tiefbau + montage + bauplatz + eng.value + drittIng + bl.value + bhv.value;
   const red = (state.reduction || 0) / 100 * subtotal;
   const grand = subtotal - red;
-  return { tiefbau, montage, bauplatz, gesamt, drittIng,
+  return { tiefbau, montage, bauplatz, gesamt, drittIng, baukosten,
     engineering: eng.value, bauleitung: bl.value, bhv: bhv.value,
-    eng, bl, bhv, engBlBhv, subtotal, red, grand };
+    eng, bl, bhv, engBlBhv, kat, honorarMax, honorarUeber, subtotal, red, grand };
 }
 
 /* ---------- Router ---------- */
 const VIEWS = {};
 let currentView = 'uebersicht';
+let navOpts = {};
 
-function navigate(view) {
+function navigate(view, opts) {
   if (!VIEWS[view]) view = 'uebersicht';
   currentView = view;
+  navOpts = opts || {};
   document.querySelectorAll('.nav-item').forEach((n) => n.classList.toggle('active', n.dataset.view === view));
   const main = document.getElementById('main');
   main.innerHTML = '';
@@ -167,11 +193,18 @@ VIEWS.uebersicht = (main) => {
   main.appendChild(metaCard());
   const m = computeModel();
 
-  const rows = [
-    ['Tiefbauarbeiten', m.tiefbau], ['Montagearbeiten', m.montage], ['Installation Bauplatz', m.bauplatz],
-    ['Engineering', m.engineering], ['Dritt-Ingenieur', m.drittIng], ['Bauleitung', m.bauleitung],
-    ['Bauherrenvertretung', m.bhv],
-  ].map(([l, v]) => `<tr><td>${l}</td><td class="num">${chf(v)}</td></tr>`).join('');
+  // Reihenfolge gemäss Excel-Template (Blatt 01). Ziel: Ansicht, die beim Klick geöffnet wird.
+  const catRows = [
+    ['Tiefbauarbeiten', m.tiefbau, 'gks-kosten', { sub: 'tiefbau' }],
+    ['Montagearbeiten', m.montage, 'gks-kosten', { sub: 'montage' }],
+    ['Installation Bauplatz', m.bauplatz, 'gks-kosten', { sub: 'bauplatz' }],
+    ['Engineering', m.engineering, 'gks-honorar', {}],
+    ['Dritt-Ingenieur', m.drittIng, 'gks-honorar', {}],
+    ['Bauleitung', m.bauleitung, 'gks-honorar', {}],
+    ['Bauherrenvertretung', m.bhv, 'gks-honorar', {}],
+  ];
+  const rows = catRows.map(([l, v, view, opts]) =>
+    `<tr class="clickable" data-goto="${view}" data-sub="${opts.sub || ''}"><td>${l} <span class="go-arrow">›</span></td><td class="num">${chf(v)}</td></tr>`).join('');
 
   const pctBHV = m.engBlBhv > 0 ? (m.bhv / m.engBlBhv * 100) : 0;
   const pctEng = m.engBlBhv > 0 ? (m.engineering / m.engBlBhv * 100) : 0;
@@ -208,12 +241,33 @@ VIEWS.uebersicht = (main) => {
             </tbody>
           </table></div>
         </div>
+        ${honorarCapCard(m)}
       </div>
       ${summaryAside(m)}
     </div>`);
 
+  main.querySelectorAll('tr.clickable').forEach((tr) => tr.addEventListener('click', () => {
+    navigate(tr.dataset.goto, tr.dataset.sub ? { sub: tr.dataset.sub } : {});
+  }));
   bindReduction(main);
 };
+
+/* Honorar-Obergrenze (Card, wiederverwendbar in Übersicht & Honorar) */
+function honorarCapCard(m) {
+  const warn = m.honorarUeber;
+  const banner = warn
+    ? `<div class="info-banner amber" style="margin:12px 0 0;"><strong>Obergrenze überschritten.</strong> Das Honorar (${chf(m.engBlBhv)}) liegt über dem Maximum von ${chf(m.honorarMax)} (${(m.kat.max * 100).toFixed(0)} % der Baukosten). Höhere Kosten müssen begründet werden.</div>`
+    : `<div class="info-banner" style="margin:12px 0 0;">Innerhalb der Obergrenze: Honorar ${chf(m.engBlBhv)} von max. ${chf(m.honorarMax)}.</div>`;
+  return `<div class="card">
+    <h3>Honorar-Obergrenze (BHV / BL / ENG)</h3>
+    <p class="card-note">Maximaler Honoraranteil nach Projektgrösse (Baukosten Tiefbau + Montage = ${chf(m.baukosten)}).</p>
+    <div class="tbl-wrap"><table class="data">
+      <thead><tr><th>Kategorie</th><th>Baukosten-Bereich</th><th class="num">Max. Anteil</th><th class="num">Max. Honorar</th></tr></thead>
+      <tbody>${HONORAR_KATEGORIEN.map((k) => `<tr class="${k.key === m.kat.key ? 'total' : ''}"><td>${k.label} (${k.key})${k.key === m.kat.key ? ' ✓' : ''}</td><td>${k.range}</td><td class="num">${(k.max * 100).toFixed(0)} %</td><td class="num">${chf(k.max * m.baukosten)}</td></tr>`).join('')}</tbody>
+    </table></div>
+    ${banner}
+  </div>`;
+}
 
 function summaryAside(m) {
   return `<aside class="summary"><div class="summary-card">
@@ -244,22 +298,23 @@ function bindReduction(main) {
    VIEW 02 – GKS Tiefbau / Montage / Bauplatz
 ====================================================================== */
 VIEWS['gks-kosten'] = (main) => {
-  main.insertAdjacentHTML('beforeend', viewHead('02 · Tiefbau · Montage · Bauplatz', 'Grobkostenschätzung nach Positionen – Menge erfassen, Totale werden live berechnet'));
+  main.insertAdjacentHTML('beforeend', viewHead('02 · Tiefbau · Montage · Bauplatz', 'Grobkostenschätzung nach Positionen (Richtpreisliste) oder als Totalbetrag (Devis-Tool / Offerte)'));
   const m = computeModel();
+  const active = ['tiefbau', 'montage', 'bauplatz'].includes(navOpts.sub) ? navOpts.sub : 'tiefbau';
   main.insertAdjacentHTML('beforeend', `
     <div class="split"><div class="content">
       <div class="tabs">
-        <button class="tab active" data-sub="tiefbau">Tiefbauarbeiten</button>
-        <button class="tab" data-sub="montage">Montagearbeiten</button>
-        <button class="tab" data-sub="bauplatz">Bauplatz-Installation</button>
+        <button class="tab ${active === 'tiefbau' ? 'active' : ''}" data-sub="tiefbau">Tiefbauarbeiten</button>
+        <button class="tab ${active === 'montage' ? 'active' : ''}" data-sub="montage">Montagearbeiten</button>
+        <button class="tab ${active === 'bauplatz' ? 'active' : ''}" data-sub="bauplatz">Bauplatz-Installation</button>
       </div>
-      <div class="subpanel active" id="sp-tiefbau"></div>
-      <div class="subpanel" id="sp-montage"></div>
-      <div class="subpanel" id="sp-bauplatz"></div>
+      <div class="subpanel ${active === 'tiefbau' ? 'active' : ''}" id="sp-tiefbau"></div>
+      <div class="subpanel ${active === 'montage' ? 'active' : ''}" id="sp-montage"></div>
+      <div class="subpanel ${active === 'bauplatz' ? 'active' : ''}" id="sp-bauplatz"></div>
     </div>${summaryAside(m)}</div>`);
 
-  renderPriceList(main.querySelector('#sp-tiefbau'), 'tiefbau', PRICE_DATA.tiefbau);
-  renderPriceList(main.querySelector('#sp-montage'), 'montage', PRICE_DATA.montage);
+  renderCostSection(main.querySelector('#sp-tiefbau'), 'tiefbau', PRICE_DATA.tiefbau, 'Tiefbauarbeiten');
+  renderCostSection(main.querySelector('#sp-montage'), 'montage', PRICE_DATA.montage, 'Montagearbeiten');
   renderBauplatz(main.querySelector('#sp-bauplatz'), m.tiefbau + m.montage);
 
   main.querySelector('.tabs').addEventListener('click', (e) => {
@@ -271,6 +326,37 @@ VIEWS['gks-kosten'] = (main) => {
   });
   bindReduction(main);
 };
+
+/* Sektion mit Wahl der Grundlage: Richtpreisliste (Positionen) oder Devis-Tool (Totalbetrag) */
+function renderCostSection(root, section, groups, label) {
+  const devis = state.grundlage[section] === 'devis';
+  const bar = el(`<div class="card" style="padding:14px 18px;margin-bottom:16px;">
+    <div class="mode-toggle">
+      <button data-g="liste" class="${!devis ? 'active' : ''}">Richtpreisliste (Positionen)</button>
+      <button data-g="devis" class="${devis ? 'active' : ''}">Devis-Tool / Offerte (Totalbetrag)</button>
+    </div>
+    <div data-devis-input style="${devis ? '' : 'display:none'};margin-top:12px;">
+      <label class="field" style="max-width:320px;">${esc(label)} – Totalbetrag [CHF]
+        <input type="number" min="0" step="any" id="devis-${section}" value="${esc(state.devisTotal[section])}" placeholder="z. B. 25000">
+      </label>
+      <p class="card-note" style="margin-top:8px;">Direkt erfasster Offert-/Devis-Betrag. Überschreibt die Positionsberechnung und fliesst in Totale, Bauplatz-Installation und Honorar-Obergrenze ein.</p>
+    </div>
+  </div>`);
+  root.appendChild(bar);
+  const listWrap = el('<div data-list style="' + (devis ? 'display:none' : '') + '"></div>');
+  root.appendChild(listWrap);
+  renderPriceList(listWrap, section, groups);
+
+  bar.querySelectorAll('.mode-toggle button').forEach((b) => b.addEventListener('click', () => {
+    state.grundlage[section] = b.dataset.g; save(); navigate('gks-kosten', { sub: section });
+  }));
+  const di = bar.querySelector('#devis-' + section);
+  if (di) di.addEventListener('input', () => {
+    state.devisTotal[section] = di.value; save();
+    updateHeaderTotal(); refreshSummaryCard();
+    const bp = document.querySelector('#sp-bauplatz'); if (bp) { const mm = computeModel(); renderBauplatz(bp, mm.tiefbau + mm.montage); }
+  });
+}
 
 function renderPriceList(root, section, groups) {
   groups.forEach((cat, ci) => {
@@ -351,7 +437,20 @@ function renderBauplatz(root, projectSum) {
 VIEWS['gks-honorar'] = (main) => {
   main.insertAdjacentHTML('beforeend', viewHead('03 · Engineering · Bauleitung · Bauherrenvertretung', 'Honorarberechnung nach SIA-103-Modell (Richtwert) oder manuell (Stunden × Ansatz)'));
   const m = computeModel();
-  main.insertAdjacentHTML('beforeend', `<div class="info-banner amber">Das automatisierte Modell liefert <strong>Richtwerte</strong> nach SIA 103. Für verbindliche Angaben die manuelle Berechnung verwenden. Grundlagen: Tiefbau ${chf(m.tiefbau)}, Montage ${chf(m.montage)}.</div>`);
+
+  // Grundlagen inkl. Total Tiefbaukosten, die das Honorar treiben
+  main.insertAdjacentHTML('beforeend', `<div class="card">
+    <h3>Grundlagen der Honorarberechnung</h3>
+    <div class="tbl-wrap"><table class="data"><tbody>
+      <tr class="clickable" data-goto="gks-kosten" data-sub="tiefbau"><td>Total Tiefbaukosten ${state.grundlage.tiefbau === 'devis' ? '(Devis-Tool)' : '(Positionen)'} <span class="go-arrow">›</span></td><td class="num">${chf(m.tiefbau)}</td></tr>
+      <tr class="clickable" data-goto="gks-kosten" data-sub="montage"><td>Total Montagekosten ${state.grundlage.montage === 'devis' ? '(Devis-Tool)' : '(Positionen)'} <span class="go-arrow">›</span></td><td class="num">${chf(m.montage)}</td></tr>
+      <tr class="total"><td>Baukosten (Basis Honorar-Obergrenze)</td><td class="num">${chf(m.baukosten)}</td></tr>
+    </tbody></table></div>
+    <p class="card-note">Die Total-Tiefbau- und -Montagekosten treiben die automatisierte Honorarberechnung sowie die Obergrenze (Kategorie <strong>${m.kat.label}</strong>, max. ${(m.kat.max * 100).toFixed(0)} %).</p>
+  </div>`);
+
+  main.insertAdjacentHTML('beforeend', honorarCapCard(m));
+  main.insertAdjacentHTML('beforeend', `<div class="info-banner amber">Das automatisierte Modell liefert <strong>Richtwerte</strong> nach SIA 103. Für verbindliche Angaben die manuelle Berechnung verwenden.</div>`);
 
   main.appendChild(honBlock('eng', 'Honorar Engineering', HONORAR.rates.engineering, m.eng, true));
   main.appendChild(honBlock('bl', 'Honorar Bauleitung', HONORAR.rates.bauleitung, m.bl, true));
@@ -367,6 +466,10 @@ VIEWS['gks-honorar'] = (main) => {
     c.querySelector('#in-dritt').addEventListener('input', (e) => { state.drittIng = e.target.value; save(); navigate(currentView); });
     return c;
   })());
+
+  main.querySelectorAll('tr.clickable').forEach((tr) => tr.addEventListener('click', () => {
+    navigate(tr.dataset.goto, tr.dataset.sub ? { sub: tr.dataset.sub } : {});
+  }));
 };
 
 function honBlock(key, title, rate, calc, hasDifficulty) {
