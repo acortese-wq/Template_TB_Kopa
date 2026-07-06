@@ -44,6 +44,10 @@ h2, h3 { line-height: 1.25; }
 .brand-text h1 .ver { opacity: .7; font-weight: 500; }
 .brand-text p { margin: 2px 0 0; font-size: 12.5px; opacity: .82; }
 .header-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.lang-switch { display: inline-flex; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); border-radius: 8px; padding: 2px; }
+.lang-switch button { appearance: none; border: 0; background: transparent; color: rgba(255,255,255,.8); font: inherit; font-weight: 700; font-size: 12px; padding: 5px 9px; border-radius: 6px; cursor: pointer; }
+.lang-switch button:hover { color: #fff; }
+.lang-switch button.active { background: #fff; color: var(--brand); }
 .header-total { text-align: right; line-height: 1.1; margin-right: 4px; }
 .header-total span { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; opacity: .72; }
 .header-total b { font-size: 16px; font-variant-numeric: tabular-nums; }

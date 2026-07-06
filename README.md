@@ -39,6 +39,15 @@ ohne Server und ohne Build-Schritt.
   durchsuchbar.
 - **Änderungskontrolle** – Versionshistorie der Vorlage.
 
+## Sprachen
+
+Die Oberfläche ist **viersprachig: DE / FR / IT / EN** (Umschalter oben rechts).
+FR/IT stammen weitgehend aus dem Excel-Blatt „Parameter_Sprache"; EN wurde
+ergänzt. Die gewählte Sprache wird lokal gespeichert. Hinweis: Die
+**Positionsbeschreibungen** der GKS-Kataloge (Tiefbau/Montage) liegen in der
+Excel-Quelle nur auf Deutsch vor und bleiben daher unübersetzt; für den
+NPK-Katalog stehen DE/FR/IT unter „LV-Texte" zur Verfügung.
+
 ## Funktionen
 
 - Live-Berechnung sämtlicher Totale, blattübergreifend verknüpft

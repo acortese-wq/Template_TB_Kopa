@@ -11,8 +11,52 @@ const ceilTo = (n, step) => (step > 0 ? Math.ceil(n / step) * step : n); // CEIL
 const cbrt = (n) => Math.cbrt(n);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+/* Übersetzung: t(deutscherSatz, ...werte) – ersetzt Platzhalter {0}, {1} … */
+function t(de, ...args) {
+  let s = tr(de, state.lang);
+  args.forEach((a, i) => { s = s.split('{' + i + '}').join(a); });
+  return s;
+}
+/* Übersetzt alle reinen Text-Labels (und placeholder/title) eines Teilbaums automatisch.
+   Der deutsche Originaltext wird pro Knoten gemerkt, damit Sprachwechsel (auch zurück auf DE)
+   verlustfrei funktionieren – auch für persistente Bereiche wie Navigation/Kopf/Fuss. */
+const _origText = new WeakMap();
+function translateDOM(root) {
+  if (!root) return;
+  const lang = state.lang || 'DE';
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const n of nodes) {
+    const stored = _origText.get(n);
+    const source = stored !== undefined ? stored : n.nodeValue;   // deutsches Original
+    const key = source.trim();
+    if (!key || !I18N[key]) continue;
+    if (stored === undefined) _origText.set(n, source);
+    const rep = (lang !== 'DE' && I18N[key][lang]) ? I18N[key][lang] : key;
+    const target = source.replace(key, rep);
+    if (n.nodeValue !== target) n.nodeValue = target;
+  }
+  const attrTr = (attr, dataKey) => root.querySelectorAll('[' + attr + ']').forEach((elm) => {
+    const orig = elm.dataset[dataKey] !== undefined ? elm.dataset[dataKey] : elm.getAttribute(attr);
+    const key = (orig || '').trim();
+    if (!key || !I18N[key]) return;
+    if (elm.dataset[dataKey] === undefined) elm.dataset[dataKey] = orig;
+    elm.setAttribute(attr, (lang !== 'DE' && I18N[key][lang]) ? I18N[key][lang] : key);
+  });
+  attrTr('placeholder', 'i18nPh');
+  attrTr('title', 'i18nTitle');
+}
+/* Übersetzt die statischen Bereiche (Kopf, Seitenleiste, Fuss). */
+function translateStatic() {
+  translateDOM(document.querySelector('.site-header'));
+  translateDOM(document.getElementById('sidebar'));
+  translateDOM(document.querySelector('.site-footer'));
+}
+
 /* ---------- Zustand ---------- */
 const state = {
+  lang: 'DE',           // Anzeigesprache: DE | FR | IT | EN
   meta: {},
   qty: {},              // GKS Tiefbau/Montage Mengen
   reduction: 0,         // Koopa-Synergie %
@@ -172,6 +216,7 @@ function navigate(view, opts) {
   const scrollY = window.scrollY;
   main.innerHTML = '';
   VIEWS[view](main);
+  translateDOM(main);
   updateHeaderTotal();
   closeSidebar();
   location.hash = view;
@@ -254,8 +299,8 @@ VIEWS.uebersicht = (main) => {
               <tbody>${rows}</tbody>
               <tfoot>
                 <tr class="total"><td>Zwischentotal</td><td class="num">${chf(m.subtotal)}</td></tr>
-                <tr><td>Koopa-Synergie-Reduktion (${state.reduction || 0}%)</td><td class="num">– ${chf(m.red)}</td></tr>
-                <tr class="total"><td>Total Grobkostenschätzung</td><td class="num">${chf(m.grand)}</td></tr>
+                <tr><td>${esc(t('Koopa-Synergie-Reduktion ({0}%)', state.reduction || 0))}</td><td class="num">– ${chf(m.red)}</td></tr>
+                <tr class="total"><td>${esc(t('Total Grobkostenschätzung'))}</td><td class="num">${chf(m.grand)}</td></tr>
               </tfoot>
             </table>
           </div>
@@ -288,14 +333,14 @@ VIEWS.uebersicht = (main) => {
 function honorarCapCard(m) {
   const warn = m.honorarUeber;
   const banner = warn
-    ? `<div class="info-banner amber" style="margin:12px 0 0;"><strong>Obergrenze überschritten.</strong> Das Honorar (${chf(m.engBlBhv)}) liegt über dem Maximum von ${chf(m.honorarMax)} (${(m.kat.max * 100).toFixed(0)} % der Baukosten). Höhere Kosten müssen begründet werden.</div>`
-    : `<div class="info-banner" style="margin:12px 0 0;">Innerhalb der Obergrenze: Honorar ${chf(m.engBlBhv)} von max. ${chf(m.honorarMax)}.</div>`;
+    ? `<div class="info-banner amber" style="margin:12px 0 0;"><strong>${esc(t('Obergrenze überschritten.'))}</strong> ${esc(t('Das Honorar ({0}) liegt über dem Maximum von {1} ({2} % der Baukosten). Höhere Kosten müssen begründet werden.', chf(m.engBlBhv), chf(m.honorarMax), (m.kat.max * 100).toFixed(0)))}</div>`
+    : `<div class="info-banner" style="margin:12px 0 0;">${esc(t('Innerhalb der Obergrenze: Honorar {0} von max. {1}.', chf(m.engBlBhv), chf(m.honorarMax)))}</div>`;
   return `<div class="card">
     <h3>Honorar-Obergrenze (BHV / BL / ENG)</h3>
-    <p class="card-note">Maximaler Honoraranteil nach Projektgrösse (Baukosten Tiefbau + Montage = ${chf(m.baukosten)}).</p>
+    <p class="card-note">${esc(t('Maximaler Honoraranteil nach Projektgrösse (Baukosten Tiefbau + Montage = {0}).', chf(m.baukosten)))}</p>
     <div class="tbl-wrap"><table class="data">
       <thead><tr><th>Kategorie</th><th>Baukosten-Bereich</th><th class="num">Max. Anteil</th><th class="num">Max. Honorar</th></tr></thead>
-      <tbody>${HONORAR_KATEGORIEN.map((k) => `<tr class="${k.key === m.kat.key ? 'total' : ''}"><td>${k.label} (${k.key})${k.key === m.kat.key ? ' ✓' : ''}</td><td>${k.range}</td><td class="num">${(k.max * 100).toFixed(0)} %</td><td class="num">${chf(k.max * m.baukosten)}</td></tr>`).join('')}</tbody>
+      <tbody>${HONORAR_KATEGORIEN.map((k) => `<tr class="${k.key === m.kat.key ? 'total' : ''}"><td>${esc(t(k.label))} (${k.key})${k.key === m.kat.key ? ' ✓' : ''}</td><td>${k.range}</td><td class="num">${(k.max * 100).toFixed(0)} %</td><td class="num">${chf(k.max * m.baukosten)}</td></tr>`).join('')}</tbody>
     </table></div>
     ${banner}
   </div>`;
@@ -368,10 +413,10 @@ function renderCostSection(root, section, groups, label) {
       <button data-g="devis" class="${devis ? 'active' : ''}">Devis-Tool / Offerte (Totalbetrag)</button>
     </div>
     <div data-devis-input style="${devis ? '' : 'display:none'};margin-top:12px;">
-      <label class="field" style="max-width:320px;">${esc(label)} – Totalbetrag [CHF]
+      <label class="field" style="max-width:320px;">${esc(t(label))} – ${esc(t('Totalbetrag [CHF]'))}
         <input type="number" min="0" step="any" id="devis-${section}" value="${esc(state.devisTotal[section])}" placeholder="z. B. 25000">
       </label>
-      <p class="card-note" style="margin-top:8px;">Direkt erfasster Offert-/Devis-Betrag. Überschreibt die Positionsberechnung und fliesst in Totale, Bauplatz-Installation und Honorar-Obergrenze ein.</p>
+      <p class="card-note" style="margin-top:8px;">${esc(t('Direkt erfasster Offert-/Devis-Betrag. Überschreibt die Positionsberechnung und fliesst in Totale, Bauplatz-Installation und Honorar-Obergrenze ein.'))}</p>
     </div>
   </div>`);
   root.appendChild(bar);
@@ -445,19 +490,23 @@ function recalcPriceLists() {
 function refreshSummaryCard() {
   // Zusammenfassungskarte neu rendern (falls sichtbar)
   const aside = document.querySelector('.summary');
-  if (aside) { const m = computeModel(); aside.outerHTML = summaryAside(m); bindReduction(document.getElementById('main')); }
+  if (aside) {
+    const m = computeModel(); aside.outerHTML = summaryAside(m);
+    const main = document.getElementById('main');
+    translateDOM(main.querySelector('.summary')); bindReduction(main);
+  }
 }
 
 function renderBauplatz(root, projectSum) {
   const idx = bauplatzTierIndex(projectSum);
-  root.innerHTML = `<div class="info-banner">Die Bauplatz-Installation (Auftragspauschale) wird <strong>automatisch</strong> anhand der Projektsumme aus Tiefbau- und Montagearbeiten (${chf(projectSum)}) ermittelt.</div>`;
+  root.innerHTML = `<div class="info-banner">${esc(t('Die Bauplatz-Installation (Auftragspauschale) wird automatisch anhand der Projektsumme aus Tiefbau- und Montagearbeiten ({0}) ermittelt.', chf(projectSum)))}</div>`;
   PRICE_DATA.bauplatz.forEach((tier, i) => {
     const sum = tier.rows.reduce((a, r) => a + r.price, 0);
     const active = i === idx;
     const rows = tier.rows.map((r) => `<span>${esc(r.type)}: <strong>${chf(r.price)}</strong></span>`).join('');
     root.appendChild(el(`<div class="tier${active ? ' active' : ''}">
       <div class="tier-name">${esc(tier.title)}</div>
-      <div>${active ? '<span class="tier-badge">angewendet</span> ' : ''}<span class="tier-total">${chf(sum)}</span></div>
+      <div>${active ? `<span class="tier-badge">${esc(t('angewendet'))}</span> ` : ''}<span class="tier-total">${chf(sum)}</span></div>
       <div class="tier-rows">${rows}</div>
     </div>`));
   });
@@ -478,11 +527,11 @@ VIEWS['gks-honorar'] = (main) => {
       <tr class="clickable" data-goto="gks-kosten" data-sub="montage"><td>Total Montagekosten ${state.grundlage.montage === 'devis' ? '(Devis-Tool)' : '(Positionen)'} <span class="go-arrow">›</span></td><td class="num">${chf(m.montage)}</td></tr>
       <tr class="total"><td>Baukosten (Basis Honorar-Obergrenze)</td><td class="num">${chf(m.baukosten)}</td></tr>
     </tbody></table></div>
-    <p class="card-note">Die Total-Tiefbau- und -Montagekosten treiben die automatisierte Honorarberechnung sowie die Obergrenze (Kategorie <strong>${m.kat.label}</strong>, max. ${(m.kat.max * 100).toFixed(0)} %).</p>
+    <p class="card-note">${esc(t('Die Total-Tiefbau- und -Montagekosten treiben die automatisierte Honorarberechnung sowie die Obergrenze (Kategorie {0}, max. {1} %).', t(m.kat.label), (m.kat.max * 100).toFixed(0)))}</p>
   </div>`);
 
   main.insertAdjacentHTML('beforeend', honorarCapCard(m));
-  main.insertAdjacentHTML('beforeend', `<div class="info-banner amber">Das automatisierte Modell liefert <strong>Richtwerte</strong> nach SIA 103. Für verbindliche Angaben die manuelle Berechnung verwenden.</div>`);
+  main.insertAdjacentHTML('beforeend', `<div class="info-banner amber">${esc(t('Das automatisierte Modell liefert Richtwerte nach SIA 103. Für verbindliche Angaben die manuelle Berechnung verwenden.'))}</div>`);
 
   main.appendChild(honBlock('eng', 'Honorar Engineering', HONORAR.rates.engineering, m.eng, true));
   main.appendChild(honBlock('bl', 'Honorar Bauleitung', HONORAR.rates.bauleitung, m.bl, true));
@@ -511,8 +560,8 @@ function honBlock(key, title, rate, calc, hasDifficulty) {
 
   const tb = calc.tb || {}, kab = calc.kab || {};
   const autoPanel = hasDifficulty ? `
-    <p class="card-note" style="margin-top:0;">Automatisiertes Modell nach <strong>SIA 103</strong>: Das <strong>Tiefbau-Honorar</strong> wird aus den <strong>Baukosten</strong> und dem <strong>Schwierigkeitsgrad</strong> hergeleitet.<br>
-      Formel: Honorar&nbsp;=&nbsp;Baukosten × (p / 100) × n × q × r × Stundenansatz, mit p&nbsp;=&nbsp;Z1&nbsp;+&nbsp;Z2 / ∛Baukosten (Z1&nbsp;=&nbsp;${HONORAR.sia.Z1}, Z2&nbsp;=&nbsp;${HONORAR.sia.Z2}).</p>
+    <p class="card-note" style="margin-top:0;">${t('Automatisiertes Modell nach SIA 103: Das Tiefbau-Honorar wird aus den Baukosten und dem Schwierigkeitsgrad hergeleitet.')}<br>
+      ${esc(t('Formel: Honorar = Baukosten × (p / 100) × n × q × r × Stundenansatz, mit p = Z1 + Z2 / ∛Baukosten (Z1 = {0}, Z2 = {1}).', HONORAR.sia.Z1, HONORAR.sia.Z2))}</p>
     <div class="hon-grid">
       <label class="field">Schwierigkeitsgrad Tiefbau<select data-hon="${key}" data-f="nTB">${diffOptions(s.nTB)}</select></label>
       <label class="field">Schwierigkeitsgrad Kabel<select data-hon="${key}" data-f="nKab">${diffOptions(s.nKab)}</select></label>
@@ -520,19 +569,19 @@ function honBlock(key, title, rate, calc, hasDifficulty) {
     <div class="sia-title">Herleitung Tiefbau-Honorar (nach Baukosten / Schwierigkeitsgrad)</div>
     <div class="tbl-wrap"><table class="data"><tbody>
       <tr><td>Baukosten Tiefbau (Grundlage Zeitaufwand)</td><td class="num">${chf(tb.base || 0)}</td></tr>
-      <tr><td>Grundfaktor p = Z1 + Z2 / ∛(${esc(tb.pBaseLabel || 'Baukosten')} ${chf(tb.pBase || 0)})</td><td class="num">${tb.p ? tb.p.toFixed(4) : '– (keine Baukosten)'}</td></tr>
-      <tr><td>Schwierigkeitsgrad n (Tiefbau)</td><td class="num">${(tb.n || 0).toFixed(1)} · ${esc(diffLabel(tb.n))}</td></tr>
+      <tr><td>${esc(t('Grundfaktor p = Z1 + Z2 / ∛({0} {1})', t(tb.pBaseLabel || 'Baukosten'), chf(tb.pBase || 0)))}</td><td class="num">${tb.p ? tb.p.toFixed(4) : esc(t('– (keine Baukosten)'))}</td></tr>
+      <tr><td>Schwierigkeitsgrad n (Tiefbau)</td><td class="num">${(tb.n || 0).toFixed(1)} · ${esc(t(diffLabel(tb.n)))}</td></tr>
       <tr><td>Leistungsanteil q (Tiefbau)</td><td class="num">${((tb.q || 0) * 100).toFixed(0)} %</td></tr>
       <tr><td>Anpassungsfaktor r</td><td class="num">${tb.r || 1}</td></tr>
       <tr><td>Zeitaufwand Tm = Baukosten × p/100 × n × q × r</td><td class="num">${(tb.tm || 0).toFixed(1)} h</td></tr>
-      <tr class="total"><td>Honorar Tiefbau (Tm × CHF ${rate}/h)</td><td class="num">${chf(tb.fee || 0)}</td></tr>
+      <tr class="total"><td>${esc(t('Honorar Tiefbau (Tm × CHF {0}/h)', rate))}</td><td class="num">${chf(tb.fee || 0)}</td></tr>
     </tbody></table></div>
     <div class="sia-title">Kabel / Montage (unverändert)</div>
     <div class="tbl-wrap"><table class="data"><tbody>
       <tr><td>Baukosten Kabel/Montage</td><td class="num">${chf(kab.base || 0)}</td></tr>
       <tr><td>Schwierigkeitsgrad n · Leistungsanteil q</td><td class="num">${(kab.n || 0).toFixed(1)} · ${((kab.q || 0) * 100).toFixed(0)} %</td></tr>
       <tr class="total"><td>Honorar Kabel/Montage</td><td class="num">${chf(kab.fee || 0)}</td></tr>
-    </tbody></table></div>` : `<p class="card-note">Kennwerte gemäss SIA 103: p=${HONORAR.bhv.p}, n=${HONORAR.bhv.n}, o=${HONORAR.bhv.o}, f=${HONORAR.bhv.f}.</p>`;
+    </tbody></table></div>` : `<p class="card-note">${esc(t('Kennwerte gemäss SIA 103: p={0}, n={1}, o={2}, f={3}.', HONORAR.bhv.p, HONORAR.bhv.n, HONORAR.bhv.o, HONORAR.bhv.f))}</p>`;
 
   const block = el(`<div class="hon-block">
     <div class="hon-head"><h3>${esc(title)}</h3><span class="hon-val">${chf(calc.value)}</span></div>
@@ -543,14 +592,14 @@ function honBlock(key, title, rate, calc, hasDifficulty) {
       </div>
       <div class="mode-panel ${autoActive ? 'active' : ''}" data-panel="auto">
         ${autoPanel}
-        <div class="hon-result"><span>Richtwert (Ansatz CHF ${rate}/h)</span><b>${chf(calc.auto)}</b></div>
+        <div class="hon-result"><span>${esc(t('Richtwert (Ansatz CHF {0}/h)', rate))}</span><b>${chf(calc.auto)}</b></div>
       </div>
       <div class="mode-panel ${!autoActive ? 'active' : ''}" data-panel="manual">
         <div class="hon-grid">
           <label class="field">Anzahl Regiestunden<input type="number" min="0" step="any" data-hon="${key}" data-f="hours" value="${esc(s.hours)}" placeholder="0"></label>
           <label class="field">Stundensatz<input type="number" value="${rate}" disabled></label>
         </div>
-        <div class="hon-result"><span>Manuell (${s.hours || 0} h × CHF ${rate})</span><b>${chf(calc.manual)}</b></div>
+        <div class="hon-result"><span>${esc(t('Manuell ({0} h × CHF {1})', s.hours || 0, rate))}</span><b>${chf(calc.manual)}</b></div>
       </div>
     </div>
   </div>`);
@@ -596,7 +645,7 @@ VIEWS['oat-uebersicht'] = (main) => {
       <tbody>${rows}</tbody>
       <tfoot>
         <tr class="total"><td>Total</td><td class="num">${chf(gksSum)}</td><td class="num" id="oat-off-total">${chf(offSum)}</td></tr>
-        <tr><td>3rd-Party-Handling-Fee (${(HONORAR.rabatte.handlingFee * 100).toFixed(0)}%)</td><td class="num">—</td><td class="num" id="oat-fee">${chf(handling)}</td></tr>
+        <tr><td>${esc(t('3rd-Party-Handling-Fee ({0}%)', (HONORAR.rabatte.handlingFee * 100).toFixed(0)))}</td><td class="num">—</td><td class="num" id="oat-fee">${chf(handling)}</td></tr>
         <tr class="total"><td>Auftragsvolumen SCS Tiefbau-Kooperationsprojekt</td><td class="num">—</td><td class="num" id="oat-vol">${chf(offSum + handling)}</td></tr>
       </tfoot>
     </table></div>
@@ -628,12 +677,12 @@ VIEWS['oat-uebersicht'] = (main) => {
    VIEW 05 – OAT Montage NPK EPG (Katalog)
 ====================================================================== */
 VIEWS['oat-montage'] = (main) => {
-  main.insertAdjacentHTML('beforeend', viewHead('05 · Montage NPK EPG', `Offert-Katalog mit ${EXTRA_DATA.montageNPK.length} NPK-Positionen – Menge erfassen`));
+  main.insertAdjacentHTML('beforeend', viewHead('05 · Montage NPK EPG', t('Offert-Katalog mit {0} NPK-Positionen – Menge erfassen', EXTRA_DATA.montageNPK.length)));
   const wrap = el(`<div>
     <div class="toolbar">
       <input type="search" id="mSearch" placeholder="Suche nach Position oder Kurztext…">
       <select id="mAk"><option value="">Alle Leistungsarten</option>${['CU','GF','AB','KK','tbd'].map((a) => `<option>${a}</option>`).join('')}</select>
-      <label class="field" style="flex-direction:row;align-items:center;gap:6px;text-transform:none;">TU-Rabatt <input type="number" id="mRab" style="width:70px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;" min="0" max="100" value="${state.oatTuRabatt || 0}"> %</label>
+      <label class="field" style="flex-direction:row;align-items:center;gap:6px;text-transform:none;">${esc(t('TU-Rabatt'))} <input type="number" id="mRab" style="width:70px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;" min="0" max="100" value="${state.oatTuRabatt || 0}"> %</label>
       <span class="spacer"></span>
       <span class="count" id="mCount"></span>
       <button class="btn sm" id="mOnly">Nur erfasste</button>
@@ -747,11 +796,11 @@ VIEWS['oat-bhveng'] = (main) => {
     ['oatBhv', 'Bauherrenvertretung', HONORAR.rates.bhv],
   ];
   groups.forEach(([storeKey, label, rate]) => {
-    main.insertAdjacentHTML('beforeend', `<h3 style="margin:18px 0 10px;font-size:16px;">${label} · CHF ${rate}/h</h3>`);
+    main.insertAdjacentHTML('beforeend', `<h3 style="margin:18px 0 10px;font-size:16px;">${esc(t(label))} · CHF ${rate}/h</h3>`);
     renderEditableTable(main, {
       store: state[storeKey],
       columns: [['text', 'Kurztext', 'text', 'wrap'], ['stunden', 'Stunden', 'number', 'num']],
-      totalLabel: `Total ${label}`,
+      totalLabel: `${t('Total')} ${t(label)}`,
       lineTotal: (r) => (parseFloat(r.stunden) || 0) * rate,
       newRow: () => ({ text: '', stunden: '' }),
       extraCol: { header: 'CHF/h', value: () => rate },
@@ -864,7 +913,7 @@ VIEWS.parameter = (main) => {
    VIEW 11 – LV-Texte DE / FR / IT (durchsuchbar)
 ====================================================================== */
 VIEWS.lvtexte = (main) => {
-  main.insertAdjacentHTML('beforeend', viewHead('11 · LV-Texte DE / FR / IT', `Dreisprachiger Positionskatalog (${EXTRA_DATA.lvTexte.length} Positionen)`));
+  main.insertAdjacentHTML('beforeend', viewHead('11 · LV-Texte DE / FR / IT', t('Dreisprachiger Positionskatalog ({0} Positionen)', EXTRA_DATA.lvTexte.length)));
   const wrap = el(`<div>
     <div class="toolbar">
       <input type="search" id="lvSearch" placeholder="Suche Position oder Text (DE/FR/IT)…">
@@ -920,13 +969,30 @@ function initShell() {
   document.getElementById('backdrop').addEventListener('click', closeSidebar);
   document.getElementById('btnPrint').addEventListener('click', () => window.print());
   document.getElementById('btnReset').addEventListener('click', () => {
-    if (!confirm('Alle Eingaben zurücksetzen?')) return;
-    localStorage.removeItem(STORAGE_KEY); location.reload();
+    if (!confirm(t('Alle Eingaben zurücksetzen?'))) return;
+    const lang = state.lang; localStorage.removeItem(STORAGE_KEY);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ lang })); } catch (e) {}
+    location.reload();
   });
+  // Sprachumschaltung
+  document.getElementById('langSwitch').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    setLang(b.dataset.lang);
+  });
+}
+function setLang(lang) {
+  state.lang = lang; save();
+  document.querySelectorAll('#langSwitch button').forEach((b) => b.classList.toggle('active', b.dataset.lang === lang));
+  document.documentElement.lang = lang.toLowerCase();
+  translateStatic();
+  navigate(currentView);
 }
 function init() {
   loadState();
   initShell();
+  document.querySelectorAll('#langSwitch button').forEach((b) => b.classList.toggle('active', b.dataset.lang === (state.lang || 'DE')));
+  document.documentElement.lang = (state.lang || 'DE').toLowerCase();
+  translateStatic();
   const hash = location.hash.replace('#', '');
   navigate(VIEWS[hash] ? hash : 'uebersicht');
 }
