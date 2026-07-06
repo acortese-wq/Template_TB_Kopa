@@ -318,6 +318,75 @@ const I18N = {
     FR: 'Prix indicatifs selon la liste SCS, en CHF, hors TVA. L’installation de chantier et les honoraires sont calculés automatiquement à partir des quantités saisies.',
     IT: 'Prezzi indicativi secondo il listino SCS, in CHF, IVA esclusa. L’installazione di cantiere e gli onorari sono calcolati automaticamente dalle quantità inserite.',
     EN: 'Indicative prices per the SCS price list, in CHF, excl. VAT. Site installation and fees are calculated automatically from the entered quantities.' },
+
+  // ==== Datenbereiche: GKS-Kategorieüberschriften (Tiefbau) ====
+  'Graben (exkl.Rohre, exkl. Behinderung, Zwischentransport, Fels, etc.)': {
+    FR: 'Tranchée (hors tubes, hors entrave, transport intermédiaire, roche, etc.)',
+    IT: 'Scavo (esclusi tubi, ostacoli, trasporto intermedio, roccia, ecc.)',
+    EN: 'Trench (excl. pipes, obstruction, intermediate transport, rock, etc.)' },
+  'Rohre (Durchschnittspreis inkl. Bogen, Schnitte, etc)': {
+    FR: 'Tubes (prix moyen, coudes et coupes compris, etc.)',
+    IT: 'Tubi (prezzo medio, curve e tagli inclusi, ecc.)',
+    EN: 'Pipes (average price incl. bends, cuts, etc.)' },
+  'Schächte (ohne Behinderung best. Swisscom-Anlage, Fels etc.)': {
+    FR: 'Regards (sans entrave de l’installation Swisscom existante, roche, etc.)',
+    IT: 'Pozzetti (senza ostacoli dell’impianto Swisscom esistente, roccia, ecc.)',
+    EN: 'Manholes (excl. obstruction of existing Swisscom infrastructure, rock, etc.)' },
+  'Werklöcher': { FR: 'Niches de tirage', IT: 'Nicchie di tiro', EN: 'Draw pits' },
+  'Gebäudeeinführung': { FR: 'Entrée de bâtiment', IT: 'Ingresso nell’edificio', EN: 'Building entry' },
+  'Allgemeine Arbeiten': { FR: 'Travaux généraux', IT: 'Lavori generali', EN: 'General works' },
+
+  // ==== GKS-Kategorieüberschriften (Montage) ====
+  'Kabelarbeiten (Material)': { FR: 'Travaux de câblage (matériel)', IT: 'Lavori di cablaggio (materiale)', EN: 'Cable works (material)' },
+  'Kabelarbeiten/Abbruch (Arbeit)': { FR: 'Travaux de câblage/démontage (main-d’œuvre)', IT: 'Lavori di cablaggio/smontaggio (manodopera)', EN: 'Cable works/removal (labour)' },
+
+  // ==== Unterüberschriften ====
+  'Kulturland': { FR: 'Terrain agricole', IT: 'Terreno agricolo', EN: 'Farmland' },
+  'Kulturland (Alternativen)': { FR: 'Terrain agricole (alternatives)', IT: 'Terreno agricolo (alternative)', EN: 'Farmland (alternatives)' },
+  'Gehweg': { FR: 'Trottoir', IT: 'Marciapiede', EN: 'Sidewalk' },
+  'Strasse': { FR: 'Route', IT: 'Strada', EN: 'Road' },
+  'Kantonsstrasse': { FR: 'Route cantonale', IT: 'Strada cantonale', EN: 'Cantonal road' },
+  'Zuschläge': { FR: 'Suppléments', IT: 'Supplementi', EN: 'Surcharges' },
+  'Schachtdeckel anpassen (Niveau)/ersetzen': {
+    FR: 'Adapter (niveau)/remplacer le couvercle de regard',
+    IT: 'Adattare (livello)/sostituire il coperchio del pozzetto',
+    EN: 'Adjust (level)/replace manhole cover' },
+  'Neue Kabel': { FR: 'Nouveaux câbles', IT: 'Nuovi cavi', EN: 'New cables' },
+  'Muffen': { FR: 'Manchons', IT: 'Giunti', EN: 'Splice closures' },
+  'Längsverschlussrohr': { FR: 'Tube de fermeture longitudinale', IT: 'Tubo di chiusura longitudinale', EN: 'Longitudinal sealing duct' },
+  'Unvorhergesehenes': { FR: 'Imprévus', IT: 'Imprevisti', EN: 'Contingencies' },
+  'Kabeleinzug': { FR: 'Tirage de câble', IT: 'Tiratura del cavo', EN: 'Cable pulling' },
+  'Kabelauszug': { FR: 'Retrait de câble', IT: 'Estrazione del cavo', EN: 'Cable withdrawal' },
+  'Bestehende Kabel umlegen in Längsverschlussrohr (pro Kabel)': {
+    FR: 'Déplacer les câbles existants dans le tube de fermeture longitudinale (par câble)',
+    IT: 'Spostare i cavi esistenti nel tubo di chiusura longitudinale (per cavo)',
+    EN: 'Relocate existing cables into longitudinal sealing duct (per cable)' },
+  'Spleissarbeiten': { FR: 'Travaux d’épissure', IT: 'Lavori di giunzione', EN: 'Splicing works' },
+  'Schachtvorbereitung (Ausrüsten f. Spleissarbeiten)': {
+    FR: 'Préparation du regard (équipement pour travaux d’épissure)',
+    IT: 'Preparazione del pozzetto (attrezzatura per lavori di giunzione)',
+    EN: 'Manhole preparation (fitting for splicing works)' },
+  'Hausinstallation': { FR: 'Installation domestique', IT: 'Installazione domestica', EN: 'In-house installation' },
+  'Freileitung': { FR: 'Ligne aérienne', IT: 'Linea aerea', EN: 'Overhead line' },
+  'Abbruch': { FR: 'Démontage', IT: 'Smontaggio', EN: 'Removal' },
+
+  // ==== Bauplatz-Pauschalstufen (FR/IT aus Excel-Blatt 10) ====
+  "Auftragspauschale Klein Pro Projektsumme < CHF 1'500.-": {
+    FR: 'Forfait ordre petit · pour montant du projet < CHF 1’500.-',
+    IT: 'Forfait ordine piccolo · per importo del progetto < CHF 1’500.-',
+    EN: 'Lump-sum order fee small · for project amount < CHF 1’500.-' },
+  "Auftragspauschale mittel Pro Projektsumme >= CHF 1'500.-  und < CHF 10'000.-": {
+    FR: 'Forfait ordre moyen · pour montant du projet ≥ CHF 1’500.- et < CHF 10’000.-',
+    IT: 'Forfait ordine medio · per importo del progetto ≥ CHF 1’500.- e < CHF 10’000.-',
+    EN: 'Lump-sum order fee medium · for project amount ≥ CHF 1’500.- and < CHF 10’000.-' },
+  "Auftragspauschale gross Pro Projektsumme >=CHF 10'000.- und < 50'000.-": {
+    FR: 'Forfait ordre grand · pour montant du projet ≥ CHF 10’000.- et < 50’000.-',
+    IT: 'Forfait ordine grande · per importo del progetto ≥ CHF 10’000.- e < 50’000.-',
+    EN: 'Lump-sum order fee large · for project amount ≥ CHF 10’000.- and < 50’000.-' },
+  "Auftragspauschale sehr gross Pro Projektsumme >= CHF 50'000.-": {
+    FR: 'Forfait ordre très grand · pour montant du projet ≥ CHF 50’000.-',
+    IT: 'Forfait ordine molto grande · per importo del progetto ≥ CHF 50’000.-',
+    EN: 'Lump-sum order fee very large · for project amount ≥ CHF 50’000.-' },
 };
 
 /* Übersetzt einen deutschen Text; für DE oder fehlende Einträge wird das Original zurückgegeben. */

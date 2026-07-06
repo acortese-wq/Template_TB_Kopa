@@ -43,7 +43,9 @@ ohne Server und ohne Build-Schritt.
 
 Die Oberfläche ist **viersprachig: DE / FR / IT / EN** (Umschalter oben rechts).
 FR/IT stammen weitgehend aus dem Excel-Blatt „Parameter_Sprache"; EN wurde
-ergänzt. Die gewählte Sprache wird lokal gespeichert. Hinweis: Die
+ergänzt. Übersetzt sind die gesamte Bedienoberfläche sowie die
+**GKS-Kategorie- und Unterüberschriften** und die **Bauplatz-Pauschalstufen**.
+Die gewählte Sprache wird lokal gespeichert. Hinweis: Die einzelnen
 **Positionsbeschreibungen** der GKS-Kataloge (Tiefbau/Montage) liegen in der
 Excel-Quelle nur auf Deutsch vor und bleiben daher unübersetzt; für den
 NPK-Katalog stehen DE/FR/IT unter „LV-Texte" zur Verfügung.

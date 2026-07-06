@@ -510,6 +510,7 @@ function renderBauplatz(root, projectSum) {
       <div class="tier-rows">${rows}</div>
     </div>`));
   });
+  translateDOM(root);   // bei In-place-Neurendern (Mengenänderung) Sprache beibehalten
 }
 
 /* ======================================================================
