@@ -55,6 +55,11 @@ const HONORAR_KATEGORIEN = [
 function honorarKategorie(baukosten) {
   return HONORAR_KATEGORIEN.find((k) => baukosten >= k.lo && baukosten < k.hi) || HONORAR_KATEGORIEN[0];
 }
+/* Text zum gewählten Schwierigkeitsgrad (SIA) */
+function diffLabel(n) {
+  const d = HONORAR.difficulty.find((x) => Math.abs(x.val - (n || 0)) < 1e-6);
+  return d ? d.label : '—';
+}
 
 /* ---------- Kern-Berechnungen (blattübergreifend) ---------- */
 function itemId(section, ci, si, ii) { return `${section}-${ci}-${si}-${ii}`; }
@@ -97,7 +102,9 @@ function honorarEngineering(tiefbau, montage, gesamt) {
   const feeKab = round100(HONORAR.rates.engineering * tmKab);
   const auto = ceilTo(feeTB + feeKab, HONORAR.rates.engineering);
   const manual = (parseFloat(s.hours) || 0) * HONORAR.rates.engineering;
-  return { auto, manual, hours: tmTB + tmKab, value: s.mode === 'manual' ? manual : auto };
+  return { auto, manual, hours: tmTB + tmKab, value: s.mode === 'manual' ? manual : auto,
+    tb: { base: tiefbau, p: pTB, pBase: gesamt, pBaseLabel: 'Gesamtbausumme koord. Projekt', n: s.nTB, q: HONORAR.engineering.qTB, r, tm: tmTB, fee: feeTB },
+    kab: { base: montage, p: pKab, n: s.nKab, q: HONORAR.engineering.qKab, r, tm: tmKab, fee: feeKab } };
 }
 function honorarBauleitung(tiefbau, montage) {
   const { Z1, Z2, r } = HONORAR.sia;
@@ -110,7 +117,9 @@ function honorarBauleitung(tiefbau, montage) {
   const feeKab = round100(HONORAR.rates.bauleitung * tmKab);
   const auto = ceilTo(feeTB + feeKab, HONORAR.rates.bauleitung);
   const manual = (parseFloat(s.hours) || 0) * HONORAR.rates.bauleitung;
-  return { auto, manual, value: s.mode === 'manual' ? manual : auto };
+  return { auto, manual, value: s.mode === 'manual' ? manual : auto,
+    tb: { base: tiefbau, p: pTB, pBase: tiefbau, pBaseLabel: 'Baukosten Tiefbau', n: s.nTB, q: HONORAR.bauleitung.qTB, r, tm: tmTB, fee: feeTB },
+    kab: { base: montage, p: pKab, n: s.nKab, q: HONORAR.bauleitung.qKab, r, tm: tmKab, fee: feeKab } };
 }
 function honorarBHV(zwischentotal) {
   const b = HONORAR.bhv, s = state.hon.bhv;
@@ -477,11 +486,30 @@ function honBlock(key, title, rate, calc, hasDifficulty) {
   const autoActive = s.mode === 'auto';
   const diffOptions = (sel) => HONORAR.difficulty.map((d) => `<option value="${d.val}" ${d.val === sel ? 'selected' : ''}>${esc(d.label)}</option>`).join('');
 
+  const tb = calc.tb || {}, kab = calc.kab || {};
   const autoPanel = hasDifficulty ? `
+    <p class="card-note" style="margin-top:0;">Automatisiertes Modell nach <strong>SIA 103</strong>: Das <strong>Tiefbau-Honorar</strong> wird aus den <strong>Baukosten</strong> und dem <strong>Schwierigkeitsgrad</strong> hergeleitet.<br>
+      Formel: Honorar&nbsp;=&nbsp;Baukosten × (p / 100) × n × q × r × Stundenansatz, mit p&nbsp;=&nbsp;Z1&nbsp;+&nbsp;Z2 / ∛Baukosten (Z1&nbsp;=&nbsp;${HONORAR.sia.Z1}, Z2&nbsp;=&nbsp;${HONORAR.sia.Z2}).</p>
     <div class="hon-grid">
       <label class="field">Schwierigkeitsgrad Tiefbau<select data-hon="${key}" data-f="nTB">${diffOptions(s.nTB)}</select></label>
       <label class="field">Schwierigkeitsgrad Kabel<select data-hon="${key}" data-f="nKab">${diffOptions(s.nKab)}</select></label>
-    </div>` : `<p class="card-note">Kennwerte gemäss SIA 103: p=${HONORAR.bhv.p}, n=${HONORAR.bhv.n}, o=${HONORAR.bhv.o}, f=${HONORAR.bhv.f}.</p>`;
+    </div>
+    <div class="sia-title">Herleitung Tiefbau-Honorar (nach Baukosten / Schwierigkeitsgrad)</div>
+    <div class="tbl-wrap"><table class="data"><tbody>
+      <tr><td>Baukosten Tiefbau (Grundlage Zeitaufwand)</td><td class="num">${chf(tb.base || 0)}</td></tr>
+      <tr><td>Grundfaktor p = Z1 + Z2 / ∛(${esc(tb.pBaseLabel || 'Baukosten')} ${chf(tb.pBase || 0)})</td><td class="num">${tb.p ? tb.p.toFixed(4) : '– (keine Baukosten)'}</td></tr>
+      <tr><td>Schwierigkeitsgrad n (Tiefbau)</td><td class="num">${(tb.n || 0).toFixed(1)} · ${esc(diffLabel(tb.n))}</td></tr>
+      <tr><td>Leistungsanteil q (Tiefbau)</td><td class="num">${((tb.q || 0) * 100).toFixed(0)} %</td></tr>
+      <tr><td>Anpassungsfaktor r</td><td class="num">${tb.r || 1}</td></tr>
+      <tr><td>Zeitaufwand Tm = Baukosten × p/100 × n × q × r</td><td class="num">${(tb.tm || 0).toFixed(1)} h</td></tr>
+      <tr class="total"><td>Honorar Tiefbau (Tm × CHF ${rate}/h)</td><td class="num">${chf(tb.fee || 0)}</td></tr>
+    </tbody></table></div>
+    <div class="sia-title">Kabel / Montage (unverändert)</div>
+    <div class="tbl-wrap"><table class="data"><tbody>
+      <tr><td>Baukosten Kabel/Montage</td><td class="num">${chf(kab.base || 0)}</td></tr>
+      <tr><td>Schwierigkeitsgrad n · Leistungsanteil q</td><td class="num">${(kab.n || 0).toFixed(1)} · ${((kab.q || 0) * 100).toFixed(0)} %</td></tr>
+      <tr class="total"><td>Honorar Kabel/Montage</td><td class="num">${chf(kab.fee || 0)}</td></tr>
+    </tbody></table></div>` : `<p class="card-note">Kennwerte gemäss SIA 103: p=${HONORAR.bhv.p}, n=${HONORAR.bhv.n}, o=${HONORAR.bhv.o}, f=${HONORAR.bhv.f}.</p>`;
 
   const block = el(`<div class="hon-block">
     <div class="hon-head"><h3>${esc(title)}</h3><span class="hon-val">${chf(calc.value)}</span></div>

@@ -214,6 +214,7 @@ table.data tfoot td, table.data tr.total td { font-weight: 700; background: #eef
 .hon-result span { color: var(--ink-soft); font-size: 13px; }
 .hon-result b { font-size: 18px; color: var(--brand); font-variant-numeric: tabular-nums; }
 .mode-panel { display: none; } .mode-panel.active { display: block; }
+.sia-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--brand-2); margin: 16px 0 8px; }
 
 .btn-row { margin-top: 12px; }
 .link-btn { background: none; border: 0; color: var(--brand-2); font: inherit; font-weight: 600; cursor: pointer; padding: 0; }
