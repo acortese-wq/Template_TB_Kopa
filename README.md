@@ -42,13 +42,16 @@ ohne Server und ohne Build-Schritt.
 ## Sprachen
 
 Die Oberfläche ist **viersprachig: DE / FR / IT / EN** (Umschalter oben rechts).
-FR/IT stammen weitgehend aus dem Excel-Blatt „Parameter_Sprache"; EN wurde
-ergänzt. Übersetzt sind die gesamte Bedienoberfläche sowie die
-**GKS-Kategorie- und Unterüberschriften** und die **Bauplatz-Pauschalstufen**.
-Die gewählte Sprache wird lokal gespeichert. Hinweis: Die einzelnen
-**Positionsbeschreibungen** der GKS-Kataloge (Tiefbau/Montage) liegen in der
-Excel-Quelle nur auf Deutsch vor und bleiben daher unübersetzt; für den
-NPK-Katalog stehen DE/FR/IT unter „LV-Texte" zur Verfügung.
+Vollständig viersprachig: Bedienoberfläche, GKS-Kategorie- und
+Unterüberschriften, Bauplatz-Pauschalstufen **und alle GKS-Positions­beschreibungen**
+(Tiefbau + Montage). FR/IT stammen wo möglich aus den Excel-Blättern
+„Parameter_Sprache" und „LV-Texte"; die Positionsbeschreibungen wurden mit der
+verifizierten Swisscom-Terminologie (Ader→paires/doppini, LWL→FO, Muffe→
+manchon/manicotto usw.) übersetzt und durch eine unabhängige Fachprüfung
+bestätigt. Technische Codes (2K55, KES 2.05/1.00, Cu, Ermatic …) bleiben
+unverändert. Die gewählte Sprache wird lokal gespeichert. Der große
+NPK-Montagekatalog (Blatt 05) bleibt aus Umfangsgründen in Quelltext; die
+Übersetzungen dazu stehen dreisprachig unter „LV-Texte".
 
 ## Funktionen
 
